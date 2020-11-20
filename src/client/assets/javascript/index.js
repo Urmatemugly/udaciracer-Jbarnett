@@ -76,7 +76,7 @@ async function delay(ms) {
 // This async function controls the flow of the race, add the logic and error handling
 async function handleCreateRace() {
 	// render starting UI
-	renderAt('#race', renderRaceStartView(store.track_id, store.racer))
+	renderAt('#race', renderRaceStartView(store.track_id, store.racer_id))
 
 	// Get player_id and track_id from the store
 	const { player_id, track_id } = store
@@ -87,15 +87,14 @@ async function handleCreateRace() {
 	console.timeEnd('get race')
 
 	// update the store with the race id
-	store.race_id = race.ID
+	store.race_id = race.ID - 1
 	// The race has been created, now start the countdown
 	console.group('start race')
 
 	// call the async function runCountdown
 	await runCountdown()
-
 	// call the async function startRace
-	await startRace(race.ID)
+	await startRace(store.race_id)
 
 	//call the async function runRace
 	await runRace(race.ID)
@@ -135,7 +134,7 @@ function runRace(raceID) {
 			}
 		},500)
 	})
-	.catch(error)
+	.catch(err => console.log("Problem with runRace request::", err))
 	// remember to add error handling for the Promise
 }
 
@@ -195,10 +194,12 @@ function handleSelectTrack(target) {
 	store.track_id = target.id
 }
 
-function handleAccelerate() {
+async function handleAccelerate() {
 	console.log("accelerate button clicked", store)
 	// Invoke the API call to accelerate
-	fetch(`${SERVER}/api/races/${store.racer}/accelerate`, { method: 'POST', ...defaultFetchOpts() })
+	await fetch(`${SERVER}/api/races/${store.player_id}/accelerate`, {
+		 method: 'POST', 
+		 ...defaultFetchOpts() })
 }
 
 // HTML VIEWS ------------------------------------------------
@@ -350,17 +351,19 @@ function defaultFetchOpts() {
 	}
 }
 
-// TODO - Make a fetch call (with error handling!) to each of the following API endpoints
+// Make a fetch call (with error handling!) to each of the following API endpoints
 
 async function getTracks() {
 	// GET request to `${SERVER}/api/tracks`
-	const trackList = await fetch(`${SERVER}/api/tracks`);
+	const trackList = await fetch(`${SERVER}/api/tracks`)
+	.catch(err => console.log("Problem with getTracks request::", err))
 	return await trackList.json();
 }
 
 async function getRacers() {
 	// GET request to `${SERVER}/api/cars`
-	const racers = await fetch(`${SERVER}/api/cars`);
+	const racers = await fetch(`${SERVER}/api/cars`)
+	.catch(err => console.log("Problem with getRacers request::", err))
 	return await racers.json();
 }
 
@@ -381,21 +384,26 @@ function createRace(player_id, track_id) {
 
 async function getRace(id) {
 	// GET request to `${SERVER}/api/races/${id}`
-	const race = await fetch(`${SERVER}/api/races/${id}`)
+	const race = await fetch(`${SERVER}/api/races/${id-1}`)
+	.catch(err => console.log("Problem with getRace request::", err))
 	return await race.json();
 }
 
 async function startRace(id) {
-	return fetch(`${SERVER}/api/races/${id}/start`, {
+	return await fetch(`${SERVER}/api/races/${id}/start`, {
 		method: 'POST',
 		...defaultFetchOpts(),
 	})
-	.then(res => res.json())
-	.catch(err => console.log("Problem with getRace request::", err))
+	.catch(err => console.log("Problem with startRace request::", err))
 }
 
-function accelerate(id) {
+async function accelerate(id) {
 	// POST request to `${SERVER}/api/races/${id}/accelerate`
+	return await fetch(`${SERVER}/api/races/${id}/accelerate`, {
+		method: 'POST',
+		...defaultFetchOpts(),
+	})
 	// options parameter provided as defaultFetchOpts
 	// no body or datatype needed for this request
+	.catch(err => console.log("Problem with accelerate request::", err))
 }
